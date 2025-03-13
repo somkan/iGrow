@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IV Crush Screener</title>
+    <!-- Reuse CSS from dashboard.html -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Reuse CSS styles from dashboard.html or option-details.html */
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .dashboard-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">IV Crush Screener</a>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <div class="dashboard-card p-4">
+            <h5><i class="fas fa-filter me-2"></i>IV Crush Filters</h5>
+            <div class="row g-3 mt-2">
+                <div class="col-md-4">
+                    <select class="form-select" id="symbol-select">
+                        <option value="">Select Symbol</option>
+                        <option value="NIFTY">NIFTY</option>
+                        <option value="BANKNIFTY">BANKNIFTY</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-primary w-100" id="search-btn">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="iv-crush-results" class="mt-4">
+            <!-- IV Crush results will be populated here -->
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('search-btn').addEventListener('click', async () => {
+            const symbol = document.getElementById('symbol-select').value;
+            const resultsContainer = document.getElementById('iv-crush-results');
+            const searchBtn = document.getElementById('search-btn');
+
+            if (!symbol) return;
+
+            // Loading state
+            searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Searching...';
+            resultsContainer.innerHTML = '<div class="text-center my-4"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+
+            try {
+                const response = await fetch(`/get-iv-crush-opportunities?symbol=${symbol}`);
+                if (!response.ok) throw new Error('Server response not OK');
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    resultsContainer.innerHTML = `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-times-circle me-2"></i>
+                            ${data.error}
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Render IV Crush Results
+                resultsContainer.innerHTML = `
+                    <div class="dashboard-card p-4">
+                        <h5>IV Crush Opportunities for ${symbol}</h5>
+                        ${data.map(opp => `
+                            <div class="alert ${opp.iv_discrepancy > 5 ? 'alert-warning' : 'alert-info'}">
+                                <h6>Strike: ${opp.strike}</h6>
+                                <p>IV Discrepancy: ${opp.iv_discrepancy}%</p>
+                                <p>Event: ${opp.event}</p>
+                                <p>Expiry: ${opp.expiry}</p>
+                                <p>Recommendation: ${opp.recommendation}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+
+            } catch (error) {
+                resultsContainer.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error: ${error.message}
+                    </div>
+                `;
+            } finally {
+                searchBtn.innerHTML = '<i class="fas fa-search"></i> Search';
+            }
+        });
+    </script>
+</body>
+</html>

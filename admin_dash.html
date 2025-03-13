@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --danger-color: #e74c3c;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        .navbar {
+            background-color: var(--primary-color);
+            padding: 1rem;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            margin-left: 1rem;
+        }
+
+        .container {
+            padding: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 1.5rem;
+            padding: 1.5rem;
+        }
+
+        .card h2 {
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .card table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .card th, .card td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .card th {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .card tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <div class="navbar">
+        <h1><i class="fas fa-user-cog"></i> Admin Dashboard</h1>
+        <div>
+            <a href="/logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Manage Strategies Section -->
+        <div class="card">
+            <h2><i class="fas fa-cogs"></i> Manage Strategies</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Strategy</th>
+                        <th>Symbol</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Iron Fly</td>
+                        <td>NIFTY</td>
+                        <td>Active</td>
+                        <td>
+                            <button class="btn btn-primary" onclick="showStrategyDetails('iron-fly')">
+                                <i class="fas fa-eye"></i> View Details
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Strategy Details Modal -->
+    <div class="modal fade" id="strategyDetailsModal" tabindex="-1" aria-labelledby="strategyDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="strategyDetailsModalLabel">Strategy Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="strategyDetailsContent">
+                        <!-- Strategy details will be populated here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="executeStrategy()">
+                        <i class="fas fa-play"></i> Execute Strategy
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Function to show strategy details in a modal
+      async function showStrategyDetails(strategyName) {
+    try {
+        const response = await fetch(`/strategy-details?strategy=${strategyName}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        const content = `
+            <h4>${data.strategy}</h4>
+            <p><strong>Symbol:</strong> ${data.symbol}</p>
+            <p><strong>Max Profit:</strong> ${data.max_profit}</p>
+            <p><strong>Max Loss:</strong> ${data.max_loss}</p>
+            <p><strong>Probability of Profit (POP):</strong> ${data.pop}%</p>
+            <h5>Legs:</h5>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Option Type</th>
+                        <th>Strike</th>
+                        <th>Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.legs.map(leg => `
+                        <tr>
+                            <td>${leg.type}</td>
+                            <td>${leg.option_type}</td>
+                            <td>${leg.strike}</td>
+                            <td>${leg.price}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+
+        document.getElementById('strategyDetailsContent').innerHTML = content;
+        const modal = new bootstrap.Modal(document.getElementById('strategyDetailsModal'));
+        modal.show();
+    } catch (error) {
+        console.error('Error fetching strategy details:', error);
+        alert(`Failed to fetch strategy details: ${error.message}`);
+    }
+}
+
+        // Function to execute the selected strategy
+        async function executeStrategy() {
+            try {
+                const response = await fetch('/execute-strategy', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ strategy: 'iron-fly' }),
+                });
+                const result = await response.json();
+                alert(result.message);
+            } catch (error) {
+                console.error('Error executing strategy:', error);
+                alert('Failed to execute strategy.');
+            }
+        }
+    </script>
+</body>
+</html>

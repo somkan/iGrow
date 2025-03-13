@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stockboard</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --danger-color: #e74c3c;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar {
+            background: var(--primary-color);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .dashboard-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+
+        .dashboard-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .table-custom {
+            border-collapse: separate;
+            border-spacing: 0 8px;
+        }
+
+        .table-custom thead th {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+        }
+
+        .table-custom tbody tr {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .valuation-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .undervalued {
+            background: #e8f5e9;
+            color: var(--success-color);
+        }
+
+        .overvalued {
+            background: #ffebee;
+            color: var(--danger-color);
+        }
+
+        .refresh-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-size: 0.9em;
+        }
+
+        .valuation-box {
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        .undervalued {
+            background: #e8f5e9;
+            color: #27ae60;
+            border: 1px solid #27ae60;
+        }
+
+        .overvalued {
+            background: #ffebee;
+            color: #e74c3c;
+            border: 1px solid #e74c3c;
+        }
+
+        .btn-action {
+            min-width: 80px;
+            font-weight: 500;
+        }
+
+        .btn-action.buy {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-action.sell {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .collapse-icon {
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+
+        .text-danger {
+            color: var(--danger-color);
+        }
+
+        .text-success {
+            color: var(--success-color);
+        }
+        /* Add to your existing CSS */
+.btn-success {
+    background: var(--success-color) !important;
+    color: white !important;
+}
+
+#auto-processing-btn.btn-success {
+    box-shadow: 0 0 8px rgba(39, 174, 96, 0.4);
+}
+
+#auto-processing-btn i {
+    margin-right: 5px;
+}
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-chart-line"></i> Option Studio
+            </a>
+            <div class="d-flex align-items-center">
+                <span class="text-white me-3 d-none d-md-block">
+                    <i class="fas fa-user"></i> {{ session.user }}
+                </span>
+                <!-- Add Configuration Link -->
+                <a href="/admin_dashboard" class="btn btn-light btn-sm me-2">
+                    <i class="fas fa-cog"></i> Configuration
+                </a>
+                <!-- In the navbar's right-aligned section -->
+<a href="/option-details" class="btn btn-light btn-sm me-2">
+    <i class="fas fa-search me-1"></i> Option Details
+</a>
+                    <!-- Updated button -->
+<button id="reset-signals-btn" class="btn btn-light btn-sm me-2">
+    <i class="fas fa-sync-alt"></i> Reset Signals
+</button>
+                <!-- Add the toggle button next to the reset button -->
+<button id="auto-processing-btn" class="btn btn-light btn-sm me-2">
+    <i class="fas fa-robot"></i> Auto Processing: OFF
+</button>
+                <a href="/logout" class="btn btn-light btn-sm">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container py-4">
+        <!-- Market Overview -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="dashboard-card p-4">
+                    <h5 class="mb-0">
+                        <a href="#marketOverviewCollapse" data-bs-toggle="collapse" aria-expanded="true" aria-controls="marketOverviewCollapse">
+                            <i class="fas fa-globe-asia me-2"></i>Market Overview
+                            <i class="fas fa-chevron-down float-end collapse-icon"></i>
+                        </a>
+                    </h5>
+                    <div id="marketOverviewCollapse" class="collapse show mt-3">
+                        <div id="screening-results">
+                            <!-- Screening results will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Market Opportunities -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="dashboard-card p-4">
+                    <h5 class="mb-0">
+                        <a href="#marketOpportunitiesCollapse" data-bs-toggle="collapse" aria-expanded="true" aria-controls="marketOpportunitiesCollapse">
+                            <i class="fas fa-bell me-2"></i>Market Opportunities
+                            <i class="fas fa-chevron-down float-end collapse-icon"></i>
+                        </a>
+                    </h5>
+                    <div id="marketOpportunitiesCollapse" class="collapse show mt-3">
+                        <div id="market-opportunities">
+                            <!-- Market opportunities (alerts) will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Options Data -->
+        <div class="row">
+            <div class="col-12">
+                <div class="dashboard-card p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="mb-0"><i class="fas fa-table me-2"></i>Dashboard</h5>
+                        <div class="text-muted small">
+                            Auto-refresh every 60 seconds
+                        </div>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="table table-custom">
+                            <thead>
+    <tr>
+        <th>Symbol</th>
+        <th>Futures Open</th>
+        <th>Futures Close</th>
+        <th>Option Open</th>
+        <th>Option Current</th>
+        <th>Option High</th>
+        <th>Option Type</th>
+        <th>Strike Price</th>
+        <th>Valuation</th>
+        <th>IV</th>
+        <th>Signal Price</th>
+        <th>Trade Status</th>
+        <th>Exec. Price</th>
+        <th>Action</th>
+    </tr>
+</thead>
+                            <tbody id="trading-data">
+                                <!-- Data will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Refresh Indicator -->
+    <div class="refresh-indicator">
+        <i class="fas fa-sync-alt me-2"></i>Last Updated: <span id="last-updated">-</span>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentData = {};
+
+        async function fetchTradingData() {
+    const symbols = ['NIFTY', 'BANKNIFTY'];
+    const newData = [];
+
+    for (const symbol of symbols) {
+        try {
+            const response = await fetch(`/trading-data?symbol=${symbol}`);
+            const data = await response.json();
+            
+            // Check if the signal status has changed
+            data.forEach(item => {
+                const existingItem = currentData.find(d => 
+                    d.symbol === item.symbol && 
+                    d.option.strike === item.option.strike && 
+                    d.option.type === item.option.type && 
+                    d.valuation.signal === item.valuation.signal
+                );
+
+                if (existingItem) {
+                    // If no change, keep the previous signal price
+                    item.option.current = existingItem.option.current;
+                }
+            });
+
+            newData.push(...data);
+        } catch (error) {
+            console.error(`Error fetching data for ${symbol}:`, error);
+            setTimeout(() => fetchSymbolData(symbol), 1000);
+        }
+    }
+
+    if (newData.length > 0) {
+        currentData = newData; // Update currentData with the new data
+        updateTable(newData);
+        document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+    }
+}
+        async function fetchSymbolData(symbol) {
+            try {
+                const response = await fetch(`/trading-data?symbol=${symbol}`);
+                const data = await response.json();
+                updateTable(data);
+                document.getElementById('last-updated').textContent = new Date().toLocaleTimeString();
+            } catch (error) {
+                console.error(`Error fetching data for ${symbol}:`, error);
+                setTimeout(() => fetchSymbolData(symbol), 1000);
+            }
+        }
+
+        function updateTable(data) {
+    const tbody = document.getElementById('trading-data');
+    tbody.innerHTML = ''; // Clear existing rows
+
+    data.forEach(item => {
+        const futures = item.futures || {};
+        const option = item.option || {};
+        const valuation = item.valuation || {};
+
+        const row = `
+            <tr>
+                <td class="fw-bold">${item.symbol || 'N/A'}</td>
+                <td>${futures.currentOpen?.toFixed(2) || '-'}</td>
+                <td>${futures.previousClose?.toFixed(2) || '-'}</td>
+                <td>${option.open?.toFixed(2) || '-'}</td>
+                <td>${option.current?.toFixed(2) || '-'}</td>
+                <td>${option.high?.toFixed(2) || '-'}</td>
+                <td>${option.type || '-'}</td>
+                <td>${option.strike || '-'}</td>
+                <td>
+                    <div class="valuation-box ${valuation.status?.toLowerCase() || ''}">
+                        ${valuation.message || 'N/A'}
+                    </div>
+                </td>
+                <td>${option.iv ? `${option.iv.toFixed(1)}%` : '-'}</td>
+                <td>${option.current?.toFixed(2) || '-'}</td>
+                <td>
+                    <span class="badge 
+                        ${item.trade_status === 'executed' ? 'bg-success' : 
+                         item.trade_status === 'failed' ? 'bg-danger' :
+                         item.trade_status === 'pending' ? 'bg-warning' : 
+                         item.trade_status === 'exists' ? 'bg-secondary' : 'bg-light'}"
+                    >
+                        ${item.trade_status || 'N/A'}
+                    </span>
+                </td>
+                <td>${item.execution_price?.toFixed(2) || '-'}</td>
+                <td>
+                    <button class="btn btn-action ${valuation.signal?.toLowerCase() || ''}" 
+                            ${['executed', 'exists'].includes(item.trade_status) ? 'disabled' : ''}
+                            data-bs-toggle="tooltip" 
+                            title="${item.trade_status === 'executed' ? 'Already executed' : 
+                                   item.trade_status === 'exists' ? 'Trade exists' : 
+                                   item.trade_status === 'failed' ? 'Execution failed' : ''}">
+                        ${valuation.signal || '-'}
+                    </button>
+                </td>
+            </tr>
+        `;
+        tbody.insertAdjacentHTML('beforeend', row);
+    });
+
+    // Initialize tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+}
+
+        async function fetchScreeningResults() {
+            try {
+                const response = await fetch('/screen?symbols=NIFTY,BANKNIFTY');
+                const results = await response.json();
+                const resultsContainer = document.getElementById('screening-results');
+
+                if (results.length === 0) {
+                    resultsContainer.innerHTML = '<div class="text-muted">No screening results found.</div>';
+                    return;
+                }
+
+                resultsContainer.innerHTML = results.map(result => `
+                    <div class="alert alert-${result.call_action === 'SELL' ? 'danger' : 'warning'}">
+                        <strong>${result.symbol} ${result.strike}</strong>
+                        <div class="mt-2">
+                            ${result.trigger_reasons?.map(r => `<span class="badge bg-secondary me-1">${r}</span>`).join('')}
+                        </div>
+                        <div class="mt-2">
+                            ${result.reasoning?.map(r => `<div>${r}</div>`).join('')}
+                        </div>
+                        ${result.iv_discrepancies?.length > 0 ? `
+                            <div class="mt-2">
+                                <strong>IV Alerts:</strong>
+                                ${result.iv_discrepancies.map(d => `
+                                    <div class="small">
+                                        ${d.type} ${d.strike}: 
+                                        <span class="${d.percentile === 90 ? 'text-danger' : 'text-success'}">
+                                            IV ${d.iv}% (${d.percentile}th %ile)
+                                        </span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                        <small class="text-muted d-block mt-2">${result.timestamp}</small>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error fetching screening results:', error);
+                document.getElementById('screening-results').innerHTML = `
+                    <div class="alert alert-danger">Failed to load screening results.</div>
+                `;
+            }
+        }
+
+async function fetchMarketOpportunities() {
+    try {
+        const response = await fetch('/alerts');
+        const alerts = await response.json();
+        const opportunitiesContainer = document.getElementById('market-opportunities');
+
+        if (!alerts || alerts.length === 0) {
+            opportunitiesContainer.innerHTML = '<div class="text-muted">No market opportunities found.</div>';
+            return;
+        }
+
+        opportunitiesContainer.innerHTML = alerts.map(alert => {
+            try {
+                return `
+                    <div class="alert alert-${alert.call_action === 'SELL' ? 'danger' : 'warning'}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>${alert.symbol} ${alert.strike}</strong><br>
+                                Call Price: ${alert.call_price?.toFixed(2) || '-'}<br>
+                                Put Price: ${alert.put_price?.toFixed(2) || '-'}
+                            </div>
+                            <div class="text-end">
+                                <span class="badge ${alert.call_action === 'SELL' ? 'bg-danger' : 'bg-success'}">
+                                    ${alert.call_action} CALL
+                                </span>
+                                <span class="badge ${alert.put_action === 'SELL' ? 'bg-danger' : 'bg-success'} mt-1">
+                                    ${alert.put_action} PUT
+                                </span>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <div class="small">
+                            ${(alert.reasoning || []).map(reason => `<div>${reason}</div>`).join('')}
+                        </div>
+                        ${alert.iv_discrepancies && Object.keys(alert.iv_discrepancies).length > 0 ? `
+                            <div class="mt-2">
+                                <strong>IV Alerts:</strong>
+                                ${Object.entries(alert.iv_discrepancies).map(([type, value]) => `
+                                    <div class="small">
+                                        ${type}: 
+                                        <span class="${Math.abs(value) > 0.5 ? 'text-danger' : 'text-success'}">
+                                            ${value?.toFixed(1) || 0}% discrepancy
+                                        </span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                        <div class="mt-2">
+                            ${(alert.trigger_reasons || []).map(r => 
+                                `<span class="badge bg-secondary me-1">${r}</span>`
+                            ).join('')}
+                        </div>
+                        <small class="text-muted">${alert.timestamp}</small>
+                    </div>
+                `;
+            } catch (e) {
+                console.error('Error rendering alert:', alert, e);
+                return `<div class="alert alert-danger">Error displaying alert</div>`;
+            }
+        }).join('');
+    } catch (error) {
+        console.error('Error fetching market opportunities:', error);
+        document.getElementById('market-opportunities').innerHTML = `
+            <div class="alert alert-danger">Failed to load market opportunities.</div>
+        `;
+    }
+}
+async function resetProcessedSignals() {
+    try {
+        const response = await fetch('/reset-signals', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+        });
+        const result = await response.json();
+        alert(result.message);
+    } catch (error) {
+        alert('Failed to reset signals');
+    }
+}
+
+// Update event listener
+document.getElementById('reset-signals-btn').addEventListener('click', resetProcessedSignals);
+// Add after the resetProcessedBuySignals function
+async function toggleAutoProcessing() {
+    try {
+        const response = await fetch('/toggle-auto-processing', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        const result = await response.json();
+        updateAutoProcessingButton(result.enabled);
+        alert(result.message);
+    } catch (error) {
+        console.error('Error toggling auto processing:', error);
+        alert('Failed to toggle auto processing');
+    }
+}
+
+function updateAutoProcessingButton(enabled) {
+    const btn = document.getElementById('auto-processing-btn');
+    btn.innerHTML = `<i class="fas fa-robot"></i> Auto Processing: ${enabled ? 'ON' : 'OFF'}`;
+    btn.classList.toggle('btn-success', enabled);
+    btn.classList.toggle('btn-light', !enabled);
+}
+
+// Initialize auto processing state on page load
+async function initializeAutoProcessingState() {
+    try {
+        const response = await fetch('/auto-processing-status');
+        const status = await response.json();
+        updateAutoProcessingButton(status.enabled);
+    } catch (error) {
+        console.error('Error fetching auto processing status:', error);
+    }
+}
+
+// Add event listener for the new button
+document.getElementById('auto-processing-btn').addEventListener('click', toggleAutoProcessing);
+
+// Update the DOMContentLoaded event listener
+document.addEventListener('DOMContentLoaded', () => {
+    initializeAutoProcessingState();
+    fetchTradingData();
+    fetchScreeningResults();
+    fetchMarketOpportunities();
+});
+
+
+    
+        // Fetch screening results when the Market Overview section is expanded
+        document.getElementById('marketOverviewCollapse').addEventListener('shown.bs.collapse', fetchScreeningResults);
+
+        // Fetch market opportunities when the section is expanded
+        document.getElementById('marketOpportunitiesCollapse').addEventListener('shown.bs.collapse', fetchMarketOpportunities);
+    </script>
+</body>
+</html>

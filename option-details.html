@@ -1,0 +1,481 @@
+<!-- Reuse CSS from dashboard.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Same head content as dashboard.html -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stockboard</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --danger-color: #e74c3c;
+        }
+
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar {
+            background: var(--primary-color);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .dashboard-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+        }
+
+        .dashboard-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .table-custom {
+            border-collapse: separate;
+            border-spacing: 0 8px;
+        }
+
+        .table-custom thead th {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+        }
+
+        .table-custom tbody tr {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .valuation-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+        }
+
+        .undervalued {
+            background: #e8f5e9;
+            color: var(--success-color);
+        }
+
+        .overvalued {
+            background: #ffebee;
+            color: var(--danger-color);
+        }
+
+        .refresh-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-size: 0.9em;
+        }
+
+        .valuation-box {
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        .undervalued {
+            background: #e8f5e9;
+            color: #27ae60;
+            border: 1px solid #27ae60;
+        }
+
+        .overvalued {
+            background: #ffebee;
+            color: #e74c3c;
+            border: 1px solid #e74c3c;
+        }
+
+        .btn-action {
+            min-width: 80px;
+            font-weight: 500;
+        }
+
+        .btn-action.buy {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-action.sell {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .collapse-icon {
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+
+        .text-danger {
+            color: var(--danger-color);
+        }
+
+        .text-success {
+            color: var(--success-color);
+        }
+        /* Add to your existing CSS */
+.btn-success {
+    background: var(--success-color) !important;
+    color: white !important;
+}
+
+#auto-processing-btn.btn-success {
+    box-shadow: 0 0 8px rgba(39, 174, 96, 0.4);
+}
+
+#auto-processing-btn i {
+    margin-right: 5px;
+}
+
+.signal-badges .badge {
+    font-size: 0.85em;
+    padding: 0.5em 0.75em;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+}
+
+.signal-badges .fa {
+    font-size: 0.9em;
+}
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <!-- Same navbar with added link -->
+        <a href="/option-details" class="btn btn-light btn-sm me-2">
+            <i class="fas fa-search"></i> Option Details
+        </a>
+        <a href="/recomend" class="btn btn-light btn-sm me-2">
+    <i class="fas fa-chart-line"></i> Advanced Analyser
+</a>
+
+<a href="/dashboard" class="btn btn-light btn-sm me-2">
+    <i class="fas fa-chart-line"></i> HOME
+</a>
+    </nav>
+
+    <div class="container py-4">
+        <div class="dashboard-card p-4">
+            <h5><i class="fas fa-filter me-2"></i>Selection Filters</h5>
+            <div class="row g-3 mt-2">
+                <div class="col-md-4">
+                    <select class="form-select" id="symbol-select">
+                        <option value="">Select Symbol</option>
+                        <option value="NIFTY">NIFTY</option>
+                        <option value="BANKNIFTY">BANKNIFTY</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select class="form-select" id="strike-select" disabled>
+                        <option value="">Select Strike Price</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button class="btn btn-primary w-100" id="search-btn" disabled>
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                      
+                </div>
+            </div>
+        </div>
+
+        <div id="results-container" class="mt-4">
+            <!-- Results will be populated here -->
+        </div>
+    </div>
+
+    <!-- Reuse scripts from dashboard.html -->
+<script>
+// Add this to the existing JavaScript in option-details.html
+
+    // Helper Functions
+    const getMarketBiasClass = (details) => {
+        const isCallBearish = details?.call_action === 'SELL';
+        const isPutBearish = details?.put_action === 'SELL';
+        return isCallBearish && isPutBearish ? 'alert-warning' :
+               !isCallBearish && !isPutBearish ? 'alert-info' : 'alert-secondary';
+    };
+
+   const generateMarketInterpretation = (details) => {
+    try {
+        if (!details) throw new Error("No data available");
+        
+        const strike = parseFloat(details.strike);
+        const spot = parseFloat(details.spot_price);
+        const moneyness = spot > strike ? 'ITM' : spot < strike ? 'OTM' : 'ATM';
+
+        // Extract actions
+        const callAction = details.call_action || 'HOLD';
+        const putAction = details.put_action || 'HOLD';
+
+        // Generate interpretation based on actions
+        let interpretation = '';
+        let strategyRecommendation = '';
+
+        if (callAction === 'HOLD' && putAction === 'HOLD') {
+            interpretation = `
+                <p class="mb-2"><strong>Neutral Market Outlook:</strong></p>
+                <ul class="small mb-2">
+                    <li>Both calls and puts are fairly valued</li>
+                    <li>Market expects limited movement</li>
+                </ul>`;
+            strategyRecommendation = `
+                <p class="mb-2"><strong>Recommended Strategy:</strong></p>
+                <ul class="small mb-2">
+                    <li>Use Theta decay strategies (e.g., Iron Condor)</li>
+                    <li>Avoid directional or volatility plays</li>
+                </ul>`;
+        } else if (callAction === 'SELL' && putAction === 'SELL') {
+            interpretation = `
+                <p class="mb-2"><strong>Range-Bound Market Expected:</strong></p>
+                <ul class="small mb-2">
+                    <li>Both calls and puts are being sold</li>
+                    <li>Market expects limited movement</li>
+                </ul>`;
+            strategyRecommendation = `
+                <p class="mb-2"><strong>Recommended Strategy:</strong></p>
+                <ul class="small mb-2">
+                    <li>Sell Iron Condor/Strangle to capitalize on low volatility</li>
+                    <li>Use Theta decay strategies</li>
+                </ul>`;
+        } else if (callAction === 'BUY' && putAction === 'BUY') {
+            interpretation = `
+                <p class="mb-2"><strong>Volatility Expansion Likely:</strong></p>
+                <ul class="small mb-2">
+                    <li>Both calls and puts are being bought</li>
+                    <li>Potential large price move anticipated</li>
+                </ul>`;
+            strategyRecommendation = `
+                <p class="mb-2"><strong>Recommended Strategy:</strong></p>
+                <ul class="small mb-2">
+                    <li>Buy Straddle/Strangle to profit from volatility</li>
+                    <li>Monitor for breakout opportunities</li>
+                </ul>`;
+        } else {
+            interpretation = `
+                <p class="mb-2"><strong>Directional Bias Detected:</strong></p>
+                <ul class="small mb-2">
+                    ${callAction === 'SELL' ? 
+                        '<li>Call selling pressure (Bearish)' : 
+                        '<li>Call buying interest (Bullish)'}
+                    ${putAction === 'SELL' ? 
+                        '<li>Put selling confidence (Bullish)' : 
+                        '<li>Put buying interest (Bearish)'}
+                </ul>`;
+            strategyRecommendation = `
+                <p class="mb-2"><strong>Recommended Strategy:</strong></p>
+                <ul class="small mb-2">
+                    ${callAction === 'SELL' ? 
+                        '<li>Sell calls to capitalize on bearish sentiment' : 
+                        '<li>Buy calls to ride bullish momentum'}
+                    ${putAction === 'SELL' ? 
+                        '<li>Sell puts to collect premium' : 
+                        '<li>Buy puts for downside protection'}
+                </ul>`;
+        }
+
+        return `
+            ${interpretation}
+            ${strategyRecommendation}
+            <div class="text-muted small">
+                Strike ${strike} is <strong>${moneyness}</strong> (Spot: ${spot.toFixed(2)})
+            </div>
+        `;
+
+    } catch (error) {
+        return `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i>
+                Error: ${error.message}
+            </div>
+        `;
+    }
+};
+    // Search Handler with Market Interpretation
+    document.getElementById('search-btn').addEventListener('click', async () => {
+        const symbol = document.getElementById('symbol-select').value;
+        const strike = document.getElementById('strike-select').value;
+        const resultsContainer = document.getElementById('results-container');
+        const searchBtn = document.getElementById('search-btn');
+
+        if (!symbol || !strike) return;
+
+        // Loading state
+        searchBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Searching...';
+        resultsContainer.innerHTML = '<div class="text-center my-4"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+
+        try {
+            const response = await fetch(`/get-option-details?symbol=${symbol}&strike=${strike}`);
+            if (!response.ok) throw new Error('Server response not OK');
+         
+            const details = await response.json();
+            
+            if (details.error) {
+                resultsContainer.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-times-circle me-2"></i>
+                        ${details.error}
+                    </div>
+                `;
+                return;
+            }
+
+            // Render Results with Market Interpretation
+            resultsContainer.innerHTML = `
+                <div class="dashboard-card p-4">
+                     <h5 class="mb-4">
+         ${details.symbol} ${details.strike} 
+         <span class="text-muted small">(Expiry: ${details.expiry_date})</span>
+     </h5>
+                    <!-- Market Bias Section -->
+                    <div class="alert ${getMarketBiasClass(details)} market-bias-alert">
+                        <h6 class="mb-3">
+                            <i class="fas fa-chart-pie me-2"></i>
+                            Composite Market Analysis
+                        </h6>
+                        ${generateMarketInterpretation(details)}
+                    </div>
+
+                    <!-- Valuation Summary -->
+                    <div class="row mt-3">
+                        <div class="col-md-6 mb-3">
+                            <div class="valuation-box ${details.call_valuation?.includes('Undervalued') ? 'undervalued' : 'overvalued'}">
+                                <div class="small text-muted">CALL Valuation</div>
+                                <div class="fw-bold mt-1">${details.call_valuation || 'N/A'}</div>
+                                <div class="small text-muted mt-1">
+                                    Score: ${details.composite_score_ce?.toFixed(2) || 'N/A'}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="valuation-box ${details.put_valuation?.includes('Undervalued') ? 'undervalued' : 'overvalued'}">
+                                <div class="small text-muted">PUT Valuation</div>
+                                <div class="fw-bold mt-1">${details.put_valuation || 'N/A'}</div>
+                                <div class="small text-muted mt-1">
+                                    Score: ${details.composite_score_pe?.toFixed(2) || 'N/A'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Price Data -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table">
+                                ${details.call_price ? `
+                                    <tr>
+                                        <th>CALL Price</th>
+                                        <td>₹${details.call_price.toFixed(2)}</td>
+                                    </tr>` : ''}
+                                ${details.put_price ? `
+                                    <tr>
+                                        <th>PUT Price</th>
+                                        <td>₹${details.put_price.toFixed(2)}</td>
+                                    </tr>` : ''}
+                                <tr>
+                                    <th>IV Discrepancy</th>
+                                    <td>
+                                        ${details.iv_discrepancies?.CE?.toFixed(1) || 0}% (CE)<br>
+                                        ${details.iv_discrepancies?.PE?.toFixed(1) || 0}% (PE)
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        
+                        <!-- Trading Actions -->
+                        <div class="col-md-6">
+                            <div class="alert alert-${details.call_action === 'SELL' ? 'danger' : 'success'} mb-3">
+                                <i class="fas fa-${details.call_action === 'SELL' ? 'arrow-down' : 'arrow-up'} me-2"></i>
+                                ${details.call_action} CALL
+                            </div>
+                            <div class="alert alert-${details.put_action === 'SELL' ? 'danger' : 'success'}">
+                                <i class="fas fa-${details.put_action === 'SELL' ? 'arrow-down' : 'arrow-up'} me-2"></i>
+                                ${details.put_action} PUT
+                            </div>
+                            <!-- Add this to option-details.html -->
+
+                        </div>
+                    </div>
+
+                    <!-- Additional Signals -->
+                    ${details.reasoning ? `
+                        <div class="mt-4">
+                            <h6 class="mb-2">Signal Breakdown</h6>
+                            <div class="small text-muted">
+                                ${details.reasoning.join('<br>')}
+                            </div>
+                        </div>` : ''}
+                </div>
+            `;
+
+        } catch (error) {
+            resultsContainer.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Error: ${error.message}
+                </div>
+            `;
+        } finally {
+            searchBtn.innerHTML = '<i class="fas fa-search"></i> Search';
+        }
+    });
+
+    // Dynamic Strike Loading
+    document.getElementById('symbol-select').addEventListener('change', async function() {
+        const symbol = this.value;
+        const strikeSelect = document.getElementById('strike-select');
+        const searchBtn = document.getElementById('search-btn');
+        
+        strikeSelect.disabled = true;
+        searchBtn.disabled = true;
+        strikeSelect.innerHTML = '<option value="">Loading strikes...</option>';
+
+        if (!symbol) {
+            strikeSelect.innerHTML = '<option value="">Select Strike Price</option>';
+            return;
+        }
+
+        try {
+            const response = await fetch(`/get-strikes?symbol=${symbol}`);
+            if (!response.ok) throw new Error('Failed to fetch strikes');
+            
+            const strikes = await response.json();
+            strikeSelect.innerHTML = '<option value="">Select Strike Price</option>' +
+                strikes.map(strike => 
+                    `<option value="${strike}">${strike}</option>`
+                ).join('');
+            
+            strikeSelect.disabled = false;
+            searchBtn.disabled = false;
+
+        } catch (error) {
+            console.error('Strike loading error:', error);
+            strikeSelect.innerHTML = '<option value="">Error loading strikes</option>';
+        }
+    });
+
+
+</script>
+</body>
+</html>

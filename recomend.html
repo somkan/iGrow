@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .card { margin: 10px; }
+        .chart-container { height: 300px; }
+        .signal-card { transition: transform 0.2s; }
+        .signal-card:hover { transform: translateY(-5px); }
+        .data-warning { display: none; color: #dc3545; font-weight: bold; }
+       
+        .data-placeholder {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            color: #6c757d;
+            margin: 15px 0;
+        }
+        .data-placeholder i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+    
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">Trading Analytics</a>
+            <div class="d-flex">
+                <select id="symbolSelect" class="form-select me-2">
+                    <option value="NIFTY">NIFTY</option>
+                    <option value="BANKNIFTY">BANKNIFTY</option>
+                </select>
+                <button class="btn btn-primary" onclick="loadData()">Refresh</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <!-- Left Column -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">Key Levels</div>
+                    <div class="card-body">
+                        <div class="data-warning" id="volumeWarning">Volume data unavailable</div>
+                        <div id="volumeProfileChart" class="chart-container"></div>
+                        <div class="data-warning" id="oiWarning">OI data unavailable</div>
+                        <table class="table table-sm">
+                            <tbody id="oiLevels"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center Column -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">Enhanced Signals</div>
+                    <div class="card-body" id="signalsContainer" 
+                        style="overflow-y: auto; max-height: 80vh;">
+                        <div class="data-warning" id="signalsWarning">No signals found</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">Dynamic Bands</div>
+                    <div class="card-body">
+                        <div class="data-warning" id="bandsWarning">Band data unavailable</div>
+                        <div id="bandsChart" class="chart-container"></div>
+                        <div id="recommendation" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+let currentCharts = [];
+const DEFAULT_SPOT = 22460.3;
+
+// Unified error handling
+function handleError(elementId, error) {
+    console.error(error);
+    document.getElementById(elementId).style.display = 'block';
+    return [];
+}
+
+// Updated loadData function
+        async function loadData() {
+            const symbol = document.getElementById('symbolSelect').value;
+            const loader = `<div class="data-placeholder">
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <div>Loading data...</div>
+                            </div>`;
+
+            // Show loading states
+            document.getElementById('signalsContainer').innerHTML = loader;
+            document.getElementById('bandsChart').parentElement.innerHTML = loader;
+            document.getElementById('volumeProfileChart').parentElement.innerHTML = loader;
+            document.getElementById('oiLevels').innerHTML = loader;
+
+            try {
+                const responses = await Promise.allSettled([
+                    fetch(`/enhanced-signals/${symbol}`),
+                    fetch(`/volume-profile/${symbol}`),
+                    fetch(`/oi-levels/${symbol}`),
+                    fetch(`/dynamic-bands/${symbol}`)
+                ]);
+
+                // Process each response
+                processResponse(responses[0], 'signalsContainer', processSignals);
+                processResponse(responses[1], 'volumeProfileChart', processVolumeProfile);
+                processResponse(responses[2], 'oiLevels', processOILevels);
+                processResponse(responses[3], 'bandsChart', processBands);
+
+            } catch (error) {
+                showErrorState();
+            }
+        }
+
+        function processResponse(response, containerId, processor) {
+            const container = document.getElementById(containerId);
+            if (response.status === 'fulfilled' && response.value.ok) {
+                response.value.json().then(data => {
+                    if (data && Object.keys(data).length > 0 && !data.error) {
+                        processor(data);
+                    } else {
+                        showNoData(container);
+                    }
+                }).catch(() => showNoData(container));
+            } else {
+                showNoData(container);
+            }
+        }
+
+        function showNoData(container) {
+            container.innerHTML = `<div class="data-placeholder">
+                                      <i class="fas fa-database"></i>
+                                      <div>No data available</div>
+                                    </div>`;
+        }
+
+        function showErrorState() {
+            document.querySelectorAll('.card-body').forEach(container => {
+                container.innerHTML = `<div class="alert alert-danger">
+                                        Failed to load data. Please try again later.
+                                      </div>`;
+            });
+        }
+
+        // Update processor functions
+        function processSignals(data) {
+            const html = data.signals?.map(signal => `
+                <div class="card signal-card mb-2">
+                    <div class="card-body">
+                        <h5>${signal.strategy || 'Unknown Strategy'}</h5>
+                        <p>Strike: ${signal.strike || 'N/A'}</p>
+                        <p>Spot: ${(signal.spot_price || DEFAULT_SPOT).toFixed(2)}</p>
+                        <div class="progress">
+                            <div class="progress-bar" 
+                                 style="width: ${((signal.score || 0) * 100)}%">
+                                ${((signal.score || 0) * 100).toFixed(1)}%
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('') || showNoData(document.getElementById('signalsContainer'));
+            
+            document.getElementById('signalsContainer').innerHTML = html;
+        }
+
+function updateVolumeProfile(data) {
+    const ctx = document.getElementById('volumeProfileChart');
+    if (!data.profile || Object.keys(data.profile).length === 0) {
+        return handleError('volumeWarning', 'No volume data');
+    }
+
+    const chart = new Chart(ctx.getContext('2d'), {
+        type: 'bar',
+        data: {
+            labels: Object.keys(data.profile),
+            datasets: [{
+                label: 'Volume Profile',
+                data: Object.values(data.profile),
+                backgroundColor: 'rgba(54, 162, 235, 0.5)'
+            }]
+        }
+    });
+    currentCharts.push(chart);
+}
+
+function updateOILevels(data) {
+    const oiData = data.oi_levels || data; // Handle different response structures
+    const validData = oiData.call_oi && oiData.put_oi;
+    
+    if (!validData) return handleError('oiWarning', 'Invalid OI data');
+    
+    document.getElementById('oiLevels').innerHTML = `
+        <tr><td>Call OI:</td><td>${(oiData.call_oi || 0).toLocaleString()}</td></tr>
+        <tr><td>Put OI:</td><td>${(oiData.put_oi || 0).toLocaleString()}</td></tr>
+        <tr><td>Max Call:</td><td>${oiData.call_max_oi || 'N/A'}</td></tr>
+        <tr><td>Max Put:</td><td>${oiData.put_max_oi || 'N/A'}</td></tr>
+    `;
+}
+
+function updateBands(data, spotPrice) {
+    const ctx = document.getElementById('bandsChart');
+    const upper = data.upper || (data.bands?.upper || spotPrice * 1.02);
+    const lower = data.lower || (data.bands?.lower || spotPrice * 0.98);
+
+    if (!upper || !lower) return handleError('bandsWarning', 'Invalid band data');
+
+    const chart = new Chart(ctx.getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: ['Lower Band', 'Spot Price', 'Upper Band'],
+            datasets: [{
+                label: 'Price Levels',
+                data: [lower, spotPrice, upper],
+                borderColor: 'rgba(255, 99, 132, 1)',
+                tension: 0.1
+            }]
+        }
+    });
+    currentCharts.push(chart);
+}
+
+function updateSignals(signals) {
+    const container = document.getElementById('signalsContainer');
+    if (!signals.length) return handleError('signalsWarning', 'No signals available');
+
+    container.innerHTML = signals.map(signal => `
+        <div class="card signal-card mb-2">
+            <div class="card-body">
+                <h5>${signal.strategy || 'Unknown Strategy'}</h5>
+                <p>Strike: ${signal.strike || 'N/A'}</p>
+                <p>Spot: ${(signal.spot_price || DEFAULT_SPOT).toFixed(2)}</p>
+                <div class="progress">
+                    <div class="progress-bar" style="width: ${(signal.score || 0) * 100}%">
+                        ${((signal.score || 0) * 100).toFixed(1)}%
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Initial load
+//document.addEventListener('DOMContentLoaded', loadData);
+document.addEventListener('DOMContentLoaded', () => {
+            const fa = document.createElement('link');
+            fa.rel = 'stylesheet';
+            fa.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css';
+            document.head.appendChild(fa);
+            loadData();
+        });
+</script>
+</body>
+</html>
